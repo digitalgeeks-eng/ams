@@ -14,14 +14,17 @@ Location: `/server`
 ### Setup
 1. `cd server`
 2. Copy `.env.example` to `.env`
-3. Configure `MONGO_URI` (for local MongoDB Compass use `mongodb://localhost:27017/fulafia-ams`), `JWT_SECRET`, Paystack keys, and `CLIENT_URL`
+3. Configure `MONGO_URI` with your MongoDB Atlas connection string, `JWT_SECRET`, Paystack keys, and `CLIENT_URL`
 4. `npm install`
 5. `npm run dev`
 
-### MongoDB Compass
-Open MongoDB Compass and connect to:
-- `mongodb://localhost:27017`
-- database: `fulafia-ams`
+### MongoDB Atlas
+Use your Atlas connection string in the server `.env` file:
+- `MONGO_URI=mongodb+srv://<your-username>:<your-password>@<your-cluster>.mongodb.net/fulafia-ams?retryWrites=true&w=majority`
+
+### Local MongoDB Compass
+If you still need a local reference, keep this as a commented example:
+- `# MONGO_URI=mongodb://localhost:27017/fulafia-ams`
 
 ### Project locations
 This application is configured for the following local areas:

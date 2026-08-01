@@ -116,3 +116,41 @@ export const markAllNotificationsRead = async (req, res) => {
   await Notification.updateMany({ userId: req.user._id, isRead: false }, { isRead: true });
   res.json({ message: 'All notifications marked as read' });
 };
+
+export const getAllNotifications = async (req, res) => {
+  const notifications = await Notification.find({}).populate('userId', 'name email').sort({ createdAt: -1 });
+  res.json({ data: notifications });
+};
+
+export const editNotification = async (req, res) => {
+  const { id } = req.params;
+  const { title, message } = req.body;
+
+  if (!title || !message) {
+    return res.status(400).json({ message: 'Title and message are required' });
+  }
+
+  const notification = await Notification.findByIdAndUpdate(
+    id,
+    { title, message },
+    { new: true, runValidators: true }
+  );
+
+  if (!notification) {
+    return res.status(404).json({ message: 'Notification not found' });
+  }
+
+  res.json({ message: 'Notification updated successfully', data: notification });
+};
+
+export const deleteNotification = async (req, res) => {
+  const { id } = req.params;
+
+  const notification = await Notification.findByIdAndDelete(id);
+
+  if (!notification) {
+    return res.status(404).json({ message: 'Notification not found' });
+  }
+
+  res.json({ message: 'Notification deleted successfully' });
+};

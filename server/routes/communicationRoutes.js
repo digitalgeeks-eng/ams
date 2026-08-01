@@ -8,7 +8,10 @@ import {
   listChatMessages,
   listNotifications,
   markNotificationRead,
-  markAllNotificationsRead
+  markAllNotificationsRead,
+  getAllNotifications,
+  editNotification,
+  deleteNotification
 } from '../controllers/communicationController.js';
 
 const router = express.Router();
@@ -19,5 +22,8 @@ router.get('/messages', asyncHandler(listChatMessages));
 router.get('/notifications', asyncHandler(listNotifications));
 router.put('/notifications/:id/read', asyncHandler(markNotificationRead));
 router.put('/notifications/read-all', asyncHandler(markAllNotificationsRead));
+router.get('/notifications/admin/all', authorizeRoles('admin'), asyncHandler(getAllNotifications));
+router.put('/notifications/admin/:id', authorizeRoles('admin'), asyncHandler(editNotification));
+router.delete('/notifications/admin/:id', authorizeRoles('admin'), asyncHandler(deleteNotification));
 
 export default router;

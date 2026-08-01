@@ -16,9 +16,7 @@ const PropertyDetails = () => {
   const [showDebugUrl, setShowDebugUrl] = useState(false);
   const [showGalleryModal, setShowGalleryModal] = useState(false);
   const [mediaType, setMediaType] = useState('image');
-  const [checkInDate, setCheckInDate] = useState('');
-  const [checkOutDate, setCheckOutDate] = useState('');
-  const [guestCount, setGuestCount] = useState(1);
+
   const [ratingValue, setRatingValue] = useState(5);
   const [ratingComment, setRatingComment] = useState('');
   const [ratingMessage, setRatingMessage] = useState('');
@@ -38,21 +36,29 @@ const PropertyDetails = () => {
   }, [id]);
 
   const handleBooking = async () => {
+    if (!user) {
+      navigate('/login');
+      return;
+    }
+    if (user?.role !== 'student') {
+      setError('Only students can book properties. Please login with a student account.');
+      return;
+    }
     if (property?.approvalStatus !== 'approved') {
       setError('This property is not yet approved for booking.');
       return;
     }
     try {
-      // Use default dates or admin-set dates
       const defaultCheckIn = new Date();
+      defaultCheckIn.setDate(defaultCheckIn.getDate() + 1);
       const defaultCheckOut = new Date(defaultCheckIn);
-      defaultCheckOut.setDate(defaultCheckOut.getDate() + 7); // 7 days stay
-      
-      await api.post('/bookings', { 
-        propertyId: id, 
+      defaultCheckOut.setDate(defaultCheckOut.getDate() + 7); // 7 day stay
+
+      await api.post('/bookings', {
+        propertyId: id,
         checkInDate: defaultCheckIn.toISOString().split('T')[0],
         checkOutDate: defaultCheckOut.toISOString().split('T')[0],
-        guestCount: 1 
+        guestCount: 1
       });
       navigate('/student/bookings');
     } catch (err) {
@@ -153,7 +159,7 @@ const PropertyDetails = () => {
           
           {/* Thumbnail Gallery */}
           {hasMultipleImages && (
-            <div className="grid gap-3" style={{ gridTemplateColumns: `repeat(auto-fill, minmax(80px, 1fr))` }}>
+            <div className="grid gap-3 grid-cols-3 sm:grid-cols-4 md:grid-cols-6">
               {property.images.map((image, index) => (
                 <button
                   type="button"

@@ -14,10 +14,13 @@ export const createBooking = async (req, res) => {
 
   const checkIn = new Date(checkInDate);
   const checkOut = new Date(checkOutDate);
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+
   if (isNaN(checkIn) || isNaN(checkOut) || checkIn >= checkOut) {
     return res.status(400).json({ message: 'Invalid check-in or check-out dates' });
   }
-  if (checkIn < new Date().setHours(0, 0, 0, 0)) {
+  if (checkIn <= today) {
     return res.status(400).json({ message: 'Check-in date must be in the future' });
   }
 

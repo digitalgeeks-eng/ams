@@ -37,7 +37,7 @@ const App = () => (
   <BrowserRouter>
     <div className="min-h-screen bg-background text-slate-900">
       <Navbar />
-      <main className="max-w-7xl mx-auto px-4 py-6">
+      <main className="max-w-7xl mx-auto px-3 py-4 sm:px-4 sm:py-6 lg:px-8">
         <Routes>
           <Route path="/" element={<Home />} />
           <Route path="/login" element={<Login />} />
