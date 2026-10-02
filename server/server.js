@@ -17,11 +17,13 @@ import complaintRoutes from './routes/complaintRoutes.js';
 import adminRoutes from './routes/adminRoutes.js';
 import communicationRoutes from './routes/communicationRoutes.js';
 import { errorHandler, notFound } from './middleware/errorMiddleware.js';
+import User from './models/User.js';
 
 dotenv.config();
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const app = express();
+app.set('trust proxy', 1);
 
 if (!process.env.PAYSTACK_SECRET_KEY || process.env.PAYSTACK_SECRET_KEY.includes('your_paystack')) {
   console.warn('Warning: PAYSTACK_SECRET_KEY is not configured correctly. Paystack payment initialization will fail until it is set.');
@@ -41,9 +43,11 @@ app.use(helmet({
 }));
 app.use(cors({ origin: process.env.CLIENT_URL || 'http://localhost:5173', credentials: true }));
 app.use(morgan('dev'));
+app.use('/api/payments/webhook', express.raw({ type: '*/*', limit: '1mb' }));
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 app.use(cookieParser());
+// Keep legacy uploads available while new property media is stored in Cloudinary.
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
 app.use('/api/auth', authRoutes);
@@ -66,6 +70,7 @@ let server;
 const startServer = async () => {
   try {
     await connectDatabase();
+    await User.updateMany({ role: 'admin', adminRole: { $exists: false } }, { $set: { adminRole: 'super_admin' } });
     server = http.createServer(app);
     server.listen(PORT, () => {
       console.log(`Server running on port ${PORT}`);

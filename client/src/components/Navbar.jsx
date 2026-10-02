@@ -46,11 +46,13 @@ const Navbar = () => {
 
           {user && user.role === 'admin' && (
             <>
-              <MenuLink to="/admin/agents" label="Agents" />
+              {user.adminRole !== 'location_admin' && <MenuLink to="/admin/manage" label="Admin Management" />}
+              {user.adminRole !== 'location_admin' && <MenuLink to="/admin/agents" label="Agents" />}
               <MenuLink to="/admin/properties" label="Properties" />
+              {user.adminRole !== 'location_admin' && <MenuLink to="/admin/users" label="Users" />}
               <MenuLink to="/admin/payments" label="Payments" />
-              <MenuLink to="/complaints" label="Complaints" />
-              <MenuLink to="/admin/notifications" label="Send Notification" />
+              {user.adminRole !== 'location_admin' && <MenuLink to="/complaints" label="Complaints" />}
+              {user.adminRole !== 'location_admin' && <MenuLink to="/admin/notifications" label="Send Notification" />}
               <MenuLink to="/notifications" label="Notifications" />
             </>
           )}
@@ -67,6 +69,7 @@ const Navbar = () => {
 
           {user && user.role === 'agent' && (
             <>
+              <MenuLink to="/agent/profile" label="Profile" />
               <MenuLink to="/agent/listings" label="My Listings" />
               <MenuLink to="/agent/add-property" label="Add Property" />
               <MenuLink to="/agent/booking-requests" label="Booking Requests" />
@@ -114,11 +117,13 @@ const Navbar = () => {
 
           {user && user.role === 'admin' && (
             <>
-              <MenuLink to="/admin/agents" label="Agents" />
+              {user.adminRole !== 'location_admin' && <MenuLink to="/admin/manage" label="Admin Management" />}
+              {user.adminRole !== 'location_admin' && <MenuLink to="/admin/agents" label="Agents" />}
               <MenuLink to="/admin/properties" label="Properties" />
+              {user.adminRole !== 'location_admin' && <MenuLink to="/admin/users" label="Users" />}
               <MenuLink to="/admin/payments" label="Payments" />
-              <MenuLink to="/complaints" label="Complaints" />
-              <MenuLink to="/admin/notifications" label="Send Notification" />
+              {user.adminRole !== 'location_admin' && <MenuLink to="/complaints" label="Complaints" />}
+              {user.adminRole !== 'location_admin' && <MenuLink to="/admin/notifications" label="Send Notification" />}
               <MenuLink to="/notifications" label="Notifications" />
               <MenuLink to="/admin" label="Dashboard" />
             </>
@@ -137,6 +142,7 @@ const Navbar = () => {
 
           {user && user.role === 'agent' && (
             <>
+              <MenuLink to="/agent/profile" label="Profile" />
               <MenuLink to="/agent/listings" label="My Listings" />
               <MenuLink to="/agent/add-property" label="Add Property" />
               <MenuLink to="/agent/booking-requests" label="Booking Requests" />

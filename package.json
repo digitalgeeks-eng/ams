@@ -9,7 +9,7 @@
   ],
   "scripts": {
     "dev": "npm run dev --workspaces",
-    "build": "npm run build --workspaces",
+    "build": "npm run build --workspace=fulafia-ams-client",
     "start": "npm start --workspace=server",
     "client": "npm --workspace=client",
     "server": "npm --workspace=server"

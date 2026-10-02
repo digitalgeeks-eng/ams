@@ -2,6 +2,8 @@ import { useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import api from '../services/api.js';
 import { setAuthToken } from '../services/api.js';
+import { GoogleLogin } from '@react-oauth/google';
+import { useAuth } from '../hooks/useAuth.jsx';
 
 const Register = () => {
   const [step, setStep] = useState(1); // Step 1: Basic, Step 2: Agent details (if agent)
@@ -16,14 +18,21 @@ const Register = () => {
     address: '',
     yearsOfExperience: '',
     licenseNumber: '',
-    bio: ''
+    bio: '',
+    accountNumber: '',
+    bankName: '',
+    accountName: ''
   });
   const [idImage, setIdImage] = useState(null);
   const [licenseImage, setLicenseImage] = useState(null);
   const [cameraMode, setCameraMode] = useState(null); // 'id', 'license', or null
   const [error, setError] = useState('');
+  const [verificationMessage, setVerificationMessage] = useState('');
+  const [emailVerificationSent, setEmailVerificationSent] = useState(false);
+  const [emailVerified, setEmailVerified] = useState(false);
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
+  const { loginWithGoogle } = useAuth();
   const cameraRef = useRef(null);
   const canvasRef = useRef(null);
 
@@ -31,6 +40,11 @@ const Register = () => {
     const { name, value } = e.target;
     setForm({ ...form, [name]: value });
     setError('');
+    if (name === 'email') {
+      setEmailVerificationSent(false);
+      setEmailVerified(false);
+      setVerificationMessage('');
+    }
   };
 
   const handleAgentChange = (e) => {
@@ -92,11 +106,43 @@ const Register = () => {
       setError('Please fill in all required fields');
       return;
     }
-    
-    if (form.role === 'agent') {
-      setStep(2);
-    } else {
-      submitRegistration();
+
+    try {
+      setLoading(true);
+      setError('');
+      if (!emailVerificationSent) {
+        await api.post('/auth/send-registration-verification', { email: form.email });
+        setEmailVerificationSent(true);
+        setVerificationMessage('Verification link sent. Open it in your email, then return here to continue.');
+        return;
+      }
+
+      const response = await api.get('/auth/registration-verification-status', { params: { email: form.email } });
+      if (!response.data?.data?.verified) {
+        setError('Please open the verification link in your email before continuing.');
+        return;
+      }
+
+      setEmailVerified(true);
+      if (form.role === 'agent') setStep(2);
+      else await submitRegistration();
+    } catch (err) {
+      setError(err.response?.data?.message || err.message || 'Unable to verify your email. Please try again.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const resendVerification = async () => {
+    try {
+      setLoading(true);
+      setError('');
+      await api.post('/auth/send-registration-verification', { email: form.email });
+      setVerificationMessage('A fresh verification link has been sent. It expires in 30 minutes.');
+    } catch (err) {
+      setError(err.response?.data?.message || 'Unable to resend the verification link.');
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -114,11 +160,15 @@ const Register = () => {
 
       if (form.role === 'agent') {
         formData.append('phone', form.phone);
-        formData.append('company', form.company);
         formData.append('address', form.address);
         formData.append('yearsOfExperience', form.yearsOfExperience);
-        formData.append('licenseNumber', form.licenseNumber);
-        formData.append('bio', form.bio);
+        if (form.company.trim()) formData.append('company', form.company.trim());
+        if (form.licenseNumber.trim()) formData.append('licenseNumber', form.licenseNumber.trim());
+        if (form.bio.trim()) formData.append('bio', form.bio.trim());
+
+        if (form.accountNumber.trim()) formData.append('accountNumber', form.accountNumber.trim());
+        if (form.bankName.trim()) formData.append('bankName', form.bankName.trim());
+        if (form.accountName.trim()) formData.append('accountName', form.accountName.trim());
 
         // Add images if captured
         if (idImage) {
@@ -148,6 +198,20 @@ const Register = () => {
     }
   };
 
+  const handleGoogleSuccess = async (response) => {
+    try {
+      setLoading(true);
+      setError('');
+      const result = await loginWithGoogle(response.credential);
+      const role = result?.data?.user?.role;
+      navigate(role === 'admin' ? '/admin' : role === 'agent' ? '/agent' : '/student');
+    } catch (err) {
+      setError(err.response?.data?.message || 'Google sign-in failed. Please try again.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
     <section className="relative mx-auto mb-12 sm:mb-16 max-w-2xl px-3 sm:px-4 py-6 sm:py-8 lg:px-8">
       <div className="overflow-hidden rounded-2xl sm:rounded-3xl bg-white p-6 sm:p-8 shadow-card ring-1 ring-slate-200">
@@ -168,10 +232,27 @@ const Register = () => {
             {error}
           </div>
         )}
+        {verificationMessage && (
+          <div className="mb-4 rounded-2xl bg-emerald-50 px-3 py-3 text-xs text-emerald-700 ring-1 ring-emerald-200 sm:mb-6 sm:px-4 sm:text-sm">
+            <p>{verificationMessage}</p>
+            {emailVerificationSent && !emailVerified && (
+              <button type="button" onClick={resendVerification} disabled={loading} className="mt-2 font-semibold text-emerald-800 underline underline-offset-2 hover:text-emerald-950">Resend verification link</button>
+            )}
+          </div>
+        )}
 
         {/* STEP 1: Basic Registration */}
         {step === 1 && (
           <form onSubmit={submitBasicForm} className="space-y-4 sm:space-y-5">
+            <div className="flex justify-center">
+              {import.meta.env.VITE_GOOGLE_CLIENT_ID ? (
+                <GoogleLogin onSuccess={handleGoogleSuccess} onError={() => setError('Google sign-in failed. Please try again.')} useOneTap={false} />
+              ) : (
+                <button type="button" onClick={() => setError('Google sign-in is not configured. Add VITE_GOOGLE_CLIENT_ID to the frontend environment and restart the frontend.')} className="inline-flex w-full items-center justify-center gap-3 rounded-2xl border border-slate-300 bg-white px-5 py-3 text-sm font-semibold text-slate-700 shadow-sm hover:bg-slate-50">
+                  <span className="text-base font-bold text-blue-600">G</span> Continue with Google
+                </button>
+              )}
+            </div>
             <label className="block">
               <span className="text-xs sm:text-sm font-medium text-slate-700">Full name *</span>
               <input
@@ -225,7 +306,7 @@ const Register = () => {
               type="submit"
               className="inline-flex w-full items-center justify-center rounded-2xl sm:rounded-3xl bg-primary px-5 py-2.5 sm:py-3 text-sm sm:text-base font-semibold text-white transition hover:bg-blue-600 mt-2 sm:mt-0"
             >
-              {form.role === 'agent' ? 'Continue to Profile Details' : 'Register'}
+              {loading ? 'Checking email...' : !emailVerificationSent ? 'Verify email to continue' : form.role === 'agent' ? 'I have verified - continue' : 'I have verified - register'}
             </button>
           </form>
         )}
@@ -305,11 +386,10 @@ const Register = () => {
               </label>
 
               <label className="block">
-                <span className="text-xs sm:text-sm font-medium text-slate-700">License Number *</span>
+                <span className="text-xs sm:text-sm font-medium text-slate-700">License Number</span>
                 <input
                   type="text"
                   name="licenseNumber"
-                  required
                   value={form.licenseNumber}
                   onChange={handleAgentChange}
                   className="mt-1.5 sm:mt-2 w-full rounded-2xl sm:rounded-3xl border border-slate-200 bg-slate-50 px-3 sm:px-4 py-2.5 sm:py-3 text-sm sm:text-base text-slate-900 outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/10"
@@ -382,7 +462,7 @@ const Register = () => {
 
             {/* License Upload */}
             <div className="rounded-xl sm:rounded-2xl border-2 border-dashed border-slate-300 p-4 sm:p-6">
-              <p className="text-xs sm:text-sm font-semibold text-slate-700 mb-3 sm:mb-4">License Photo *</p>
+              <p className="text-xs sm:text-sm font-semibold text-slate-700 mb-3 sm:mb-4">License Photo</p>
               {licenseImage ? (
                 <div className="space-y-2 sm:space-y-3">
                   <img src={licenseImage} alt="License" className="w-24 sm:w-32 h-24 sm:h-32 object-cover rounded-lg" />
@@ -429,7 +509,7 @@ const Register = () => {
               </button>
               <button
                 type="submit"
-                disabled={loading || !idImage || !licenseImage}
+                disabled={loading || !idImage}
                 className="flex-1 rounded-2xl sm:rounded-3xl bg-primary px-4 sm:px-5 py-2.5 sm:py-3 text-xs sm:text-sm font-semibold text-white transition hover:bg-blue-600 disabled:bg-slate-400 disabled:cursor-not-allowed"
               >
                 {loading ? 'Registering...' : 'Complete Registration'}

@@ -23,15 +23,21 @@ const initializeDatabase = async () => {
       Recommendation.syncIndexes()
     ]);
 
-    const adminEmail = 'admin@fulafia.edu.ng';
+    await User.updateMany({ role: 'admin', adminRole: { $exists: false } }, { $set: { adminRole: 'super_admin' } });
+
+    const adminEmail = process.env.ADMIN_EMAIL;
+    const adminPassword = process.env.ADMIN_PASSWORD;
+    if (!adminEmail || !adminPassword) throw new Error('ADMIN_EMAIL and ADMIN_PASSWORD must be configured for admin bootstrap.');
     const existingAdmin = await User.findOne({ email: adminEmail.toLowerCase() });
     if (!existingAdmin) {
-      const hashedPassword = await bcrypt.hash('Admin@1234', 10);
+      const hashedPassword = await bcrypt.hash(adminPassword, 10);
       await User.create({
         name: 'FULAFIA Admin',
         email: adminEmail.toLowerCase(),
         password: hashedPassword,
         role: 'admin',
+        adminRole: 'super_admin',
+        adminSource: 'created_as_admin',
         verificationStatus: 'verified'
       });
       console.log('Admin user created successfully.');

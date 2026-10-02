@@ -20,7 +20,14 @@ export const protect = async (req, res, next) => {
       res.status(401);
       return next(new Error('User not found'));
     }
+    if (user.status && user.status !== 'active') {
+      res.status(403);
+      return next(new Error(`Account is ${user.status}. Contact an administrator.`));
+    }
 
+    if (user.role === 'admin' && !user.adminRole) {
+      user.adminRole = 'super_admin';
+    }
     req.user = user;
     next();
   } catch (error) {
@@ -28,4 +35,22 @@ export const protect = async (req, res, next) => {
     const message = error.name === 'TokenExpiredError' ? 'Token expired' : 'Invalid or expired token';
     next(new Error(message));
   }
+};
+
+export const optionalProtect = async (req, res, next) => {
+  const authHeader = req.headers.authorization;
+  const token = authHeader?.match(/^Bearer\s+/i) ? authHeader.split(' ')[1] : null;
+  if (!token) return next();
+
+  try {
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    const user = await User.findById(decoded.id).select('-password');
+    if (user && (!user.status || user.status === 'active')) {
+      if (user.role === 'admin' && !user.adminRole) user.adminRole = 'super_admin';
+      req.user = user;
+    }
+  } catch (error) {
+    // Public property requests may continue when no valid session is present.
+  }
+  next();
 };

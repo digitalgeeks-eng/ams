@@ -1,5 +1,6 @@
 import Booking from '../models/Booking.js';
 import Property from '../models/Property.js';
+import { adminAccessMessage, assertAdminPropertyAccess, getAdminPropertyFilter, isSuperAdmin } from '../utils/adminScope.js';
 
 export const createBooking = async (req, res) => {
   const { propertyId, checkInDate, checkOutDate, guestCount = 1 } = req.body;
@@ -8,7 +9,7 @@ export const createBooking = async (req, res) => {
   }
 
   const property = await Property.findById(propertyId);
-  if (!property || property.approvalStatus !== 'approved' || property.isUnavailable || (property.visibleUntil && property.visibleUntil <= new Date())) {
+  if (!property || property.approvalStatus !== 'approved' || property.isUnavailable || property.availabilityStatus === 'not_available' || (property.visibleUntil && property.visibleUntil <= new Date())) {
     return res.status(404).json({ message: 'Property not available for booking' });
   }
 
@@ -58,7 +59,7 @@ export const createBooking = async (req, res) => {
 
 export const getStudentBookings = async (req, res) => {
   const bookings = await Booking.find({ studentId: req.user._id })
-    .populate('propertyId', 'title location price images approvalStatus')
+    .populate('propertyId', 'title location price images approvalStatus isUnavailable availabilityStatus availabilityReason')
     .sort({ createdAt: -1 });
   res.json({ data: bookings });
 };
@@ -74,11 +75,12 @@ export const getAgentBookings = async (req, res) => {
 };
 
 export const getAdminBookings = async (req, res) => {
-  const bookings = await Booking.find()
+  const propertyIds = await Property.find(getAdminPropertyFilter(req.user)).distinct('_id');
+  const bookings = await Booking.find(isSuperAdmin(req.user) ? {} : { propertyId: { $in: propertyIds } })
     .populate('studentId', 'name email')
     .populate({
       path: 'propertyId',
-      select: 'title location price type approvalStatus images agentId',
+      select: 'title location price type approvalStatus images agentId isUnavailable availabilityStatus availabilityReason',
       populate: { path: 'agentId', select: 'name email' }
     })
     .sort({ createdAt: -1 });
@@ -93,6 +95,7 @@ export const getBooking = async (req, res) => {
   if (booking.studentId._id.toString() !== req.user._id.toString() && req.user.role !== 'admin') {
     return res.status(403).json({ message: 'Unauthorized access to booking' });
   }
+  if (req.user.role === 'admin' && !assertAdminPropertyAccess(req.user, booking.propertyId)) return res.status(403).json({ message: adminAccessMessage });
   res.json({ data: booking });
 };
 
@@ -117,6 +120,7 @@ export const cancelBooking = async (req, res) => {
 export const approveBooking = async (req, res) => {
   const booking = await Booking.findById(req.params.id).populate('propertyId', 'agentId');
   if (!booking) return res.status(404).json({ message: 'Booking not found' });
+  if (req.user.role === 'admin' && !assertAdminPropertyAccess(req.user, booking.propertyId)) return res.status(403).json({ message: adminAccessMessage });
   if (req.user.role === 'agent' && booking.propertyId.agentId.toString() !== req.user._id.toString()) {
     return res.status(403).json({ message: 'Unauthorized to approve this booking' });
   }
@@ -131,6 +135,7 @@ export const approveBooking = async (req, res) => {
 export const rejectBooking = async (req, res) => {
   const booking = await Booking.findById(req.params.id).populate('propertyId', 'agentId');
   if (!booking) return res.status(404).json({ message: 'Booking not found' });
+  if (req.user.role === 'admin' && !assertAdminPropertyAccess(req.user, booking.propertyId)) return res.status(403).json({ message: adminAccessMessage });
   if (req.user.role === 'agent' && booking.propertyId.agentId.toString() !== req.user._id.toString()) {
     return res.status(403).json({ message: 'Unauthorized to reject this booking' });
   }
